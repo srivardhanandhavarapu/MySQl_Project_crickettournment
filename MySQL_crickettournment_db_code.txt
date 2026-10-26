@@ -1,0 +1,708 @@
+
+mysql> CREATE DATABASE Crickettournment_db;
+Query OK, 1 row affected (0.01 sec)
+
+mysql> USE Crickettournment_db;
+Database changed
+mysql>
+mysql> CREATE TABLE coaches (
+    ->     coach_id          INT PRIMARY KEY AUTO_INCREMENT,
+    ->     coach_name        VARCHAR(50) NOT NULL,
+    ->     experience_years  INT CHECK (experience_years >= 0),
+    ->     specialization    VARCHAR(30),
+    ->     phone             VARCHAR(15) UNIQUE
+    -> );
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> CREATE TABLE teams (
+    ->     team_id       INT PRIMARY KEY AUTO_INCREMENT,
+    ->     team_name     VARCHAR(50) NOT NULL UNIQUE,
+    ->     city          VARCHAR(50) NOT NULL,
+    ->     founded_year  INT,
+    ->     coach_id      INT UNIQUE,
+    ->     FOREIGN KEY (coach_id) REFERENCES coaches(coach_id)
+    -> );
+Query OK, 0 rows affected (0.04 sec)
+
+mysql>
+mysql> CREATE TABLE stadium (
+    ->     stadium_id    INT PRIMARY KEY AUTO_INCREMENT,
+    ->     stadium_name  VARCHAR(60) NOT NULL,
+    ->     city          VARCHAR(50) NOT NULL,
+    ->     capacity      INT CHECK (capacity > 0)
+    -> );
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> CREATE TABLE tournaments (
+    ->     tournament_id    INT PRIMARY KEY AUTO_INCREMENT,
+    ->     tournament_name  VARCHAR(60) NOT NULL,
+    ->     season_year      INT NOT NULL,
+    ->     start_date       DATE NOT NULL,
+    ->     end_date         DATE NOT NULL,
+    ->     prize_money      DECIMAL(12,2) DEFAULT 0,
+    ->     CHECK (end_date >= start_date)
+    -> );
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> CREATE TABLE registrations (
+    ->     registration_id  INT PRIMARY KEY AUTO_INCREMENT,
+    ->     tournament_id    INT NOT NULL,
+    ->     team_id          INT NOT NULL,
+    ->     reg_date         DATE NOT NULL,
+    ->     fee_paid         DECIMAL(10,2) DEFAULT 0,
+    ->     status           ENUM('Pending','Confirmed','Rejected') DEFAULT 'Pending',
+    ->     UNIQUE (tournament_id, team_id),
+    ->     FOREIGN KEY (tournament_id) REFERENCES tournaments(tournament_id),
+    ->     FOREIGN KEY (team_id)       REFERENCES teams(team_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> CREATE TABLE players (
+    ->     player_id      INT PRIMARY KEY AUTO_INCREMENT,
+    ->     player_name    VARCHAR(50) NOT NULL,
+    ->     age            INT CHECK (age >= 15),
+    ->     role           ENUM('Batsman','Bowler','All-rounder','Wicket-keeper') NOT NULL,
+    ->     batting_style  VARCHAR(20),
+    ->     jersey_no      INT,
+    ->     team_id        INT NOT NULL,
+    ->     UNIQUE (team_id, jersey_no),
+    ->     FOREIGN KEY (team_id) REFERENCES teams(team_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> CREATE TABLE matches (
+    ->     match_id          INT PRIMARY KEY AUTO_INCREMENT,
+    ->     tournament_id     INT NOT NULL,
+    ->     team1_id          INT NOT NULL,
+    ->     team2_id          INT NOT NULL,
+    ->     stadium_id        INT NOT NULL,
+    ->     match_date        DATE NOT NULL,
+    ->     match_type        ENUM('League','Semi-Final','Final') DEFAULT 'League',
+    ->     winner_team_id    INT,                          -- NULL = match not played yet
+    ->     player_of_match   INT,
+    ->     CHECK (team1_id <> team2_id),
+    ->     FOREIGN KEY (tournament_id)   REFERENCES tournaments(tournament_id),
+    ->     FOREIGN KEY (team1_id)        REFERENCES teams(team_id),
+    ->     FOREIGN KEY (team2_id)        REFERENCES teams(team_id),
+    ->     FOREIGN KEY (stadium_id)      REFERENCES stadium(stadium_id),
+    ->     FOREIGN KEY (winner_team_id)  REFERENCES teams(team_id),
+    ->     FOREIGN KEY (player_of_match) REFERENCES players(player_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> CREATE TABLE innings (
+    ->     innings_id       INT PRIMARY KEY AUTO_INCREMENT,
+    ->     match_id         INT NOT NULL,
+    ->     innings_no       INT NOT NULL CHECK (innings_no IN (1,2)),
+    ->     batting_team_id  INT NOT NULL,
+    ->     bowling_team_id  INT NOT NULL,
+    ->     total_runs       INT DEFAULT 0,
+    ->     wickets_lost     INT DEFAULT 0 CHECK (wickets_lost BETWEEN 0 AND 10),
+    ->     overs            DECIMAL(3,1),
+    ->     UNIQUE (match_id, innings_no),
+    ->     FOREIGN KEY (match_id)        REFERENCES matches(match_id),
+    ->     FOREIGN KEY (batting_team_id) REFERENCES teams(team_id),
+    ->     FOREIGN KEY (bowling_team_id) REFERENCES teams(team_id)
+    -> );
+Query OK, 0 rows affected (0.10 sec)
+
+mysql> CREATE TABLE player_stats (
+    ->     stat_id        INT PRIMARY KEY AUTO_INCREMENT,
+    ->     match_id       INT NOT NULL,
+    ->     player_id      INT NOT NULL,
+    ->     runs           INT DEFAULT 0,
+    ->     balls_faced    INT DEFAULT 0,
+    ->     fours          INT DEFAULT 0,
+    ->     sixes          INT DEFAULT 0,
+    ->     wickets        INT DEFAULT 0,
+    ->     overs_bowled   DECIMAL(3,1) DEFAULT 0,
+    ->     runs_conceded  INT DEFAULT 0,
+    ->     UNIQUE (match_id, player_id),
+    ->     FOREIGN KEY (match_id)  REFERENCES matches(match_id),
+    ->     FOREIGN KEY (player_id) REFERENCES players(player_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql> ALTER TABLE coaches ADD COLUMN email VARCHAR(80);
+Query OK, 0 rows affected (0.04 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> ALTER TABLE teams   MODIFY city VARCHAR(60) NOT NULL;
+Query OK, 0 rows affected (0.04 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_players_team   ON players(team_id);
+Query OK, 0 rows affected (0.04 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_matches_date   ON matches(match_date);
+Query OK, 0 rows affected (0.09 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_stats_player   ON player_stats(player_id);
+Query OK, 0 rows affected (0.03 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> INSERT INTO coaches (coach_name, experience_years, specialization, phone) VALUES
+    -> ('Ravi Kumar',          12, 'Batting',    '9876500001'),
+    -> ('Sandeep Patil',       20, 'All-round',  '9876500002'),
+    -> ('Venkat Rao',          15, 'Bowling',    '9876500003'),
+    -> ('Amit Sharma',         10, 'Fielding',   '9876500004'),
+    -> ('Debasish Mukherjee',  18, 'Batting',    '9876500005'),
+    -> ('Girish Naik',         14, 'Bowling',    '9876500006');
+Query OK, 6 rows affected (0.01 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO teams (team_name, city, founded_year, coach_id) VALUES
+    -> ('Chennai Strikers',   'Chennai',   2015, 1),
+    -> ('Mumbai Warriors',    'Mumbai',    2012, 2),
+    -> ('Hyderabad Hawks',    'Hyderabad', 2016, 3),
+    -> ('Delhi Dynamos',      'Delhi',     2013, 4),
+    -> ('Kolkata Knights',    'Kolkata',   2011, 5),
+    -> ('Bengaluru Blasters', 'Bengaluru', 2017, 6);
+Query OK, 6 rows affected (0.01 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO stadium (stadium_name, city, capacity) VALUES
+    -> ('MA Chidambaram Stadium', 'Chennai',   50000),
+    -> ('Wankhede Stadium',       'Mumbai',    33000),
+    -> ('Rajiv Gandhi Stadium',   'Hyderabad', 55000),
+    -> ('Eden Gardens',           'Kolkata',   66000);
+Query OK, 4 rows affected (0.01 sec)
+Records: 4  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO tournaments (tournament_name, season_year, start_date, end_date, prize_money) VALUES
+    -> ('Summer Premier Cup', 2025, '2025-03-01', '2025-03-25', 2000000),
+    -> ('Champions Trophy',   2026, '2026-03-01', '2026-04-05', 5000000);
+Query OK, 2 rows affected (0.01 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO registrations (tournament_id, team_id, reg_date, fee_paid, status) VALUES
+    -> (1, 1, '2025-01-10', 50000, 'Confirmed'), (1, 2, '2025-01-12', 50000, 'Confirmed'),
+    -> (1, 3, '2025-01-15', 50000, 'Confirmed'), (1, 4, '2025-01-18', 50000, 'Confirmed'),
+    -> (1, 5, '2025-01-20', 50000, 'Confirmed'), (1, 6, '2025-01-22', 50000, 'Confirmed'),
+    -> (2, 1, '2026-01-08', 60000, 'Confirmed'), (2, 2, '2026-01-10', 60000, 'Confirmed'),
+    -> (2, 3, '2026-01-12', 60000, 'Confirmed'), (2, 4, '2026-01-14', 60000, 'Confirmed'),
+    -> (2, 5, '2026-01-16', 60000, 'Confirmed'), (2, 6, '2026-01-20', 30000, 'Confirmed');
+Query OK, 12 rows affected (0.01 sec)
+Records: 12  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO players (player_name, age, role, batting_style, jersey_no, team_id) VALUES
+    -> ('Arjun Reddy',    27, 'Batsman',       'Right-hand', 7,  1),
+    -> ('Karthik Raj',    24, 'Bowler',        'Right-hand', 11, 1),
+    -> ('Suresh Babu',    30, 'All-rounder',   'Left-hand',  18, 1),
+    -> ('Vijay Kumar',    28, 'Wicket-keeper', 'Right-hand', 1,  1),
+    -> ('Dinesh Naidu',   26, 'Batsman',       'Left-hand',  45, 1),
+    -> ('Rohit Verma',    28, 'Batsman',       'Right-hand', 9,  2),
+    -> ('Sameer Khan',    25, 'Bowler',        'Left-hand',  22, 2),
+    -> ('Vikram Joshi',   31, 'Wicket-keeper', 'Right-hand', 2,  2),
+    -> ('Aditya Shah',    27, 'All-rounder',   'Right-hand', 14, 2),
+    -> ('Nitin Patil',    29, 'Bowler',        'Right-hand', 33, 2),
+    -> ('Pranav Teja',    23, 'Batsman',       'Right-hand', 10, 3),
+    -> ('Harsha Vardhan', 26, 'All-rounder',   'Left-hand',  8,  3),
+    -> ('Nikhil Rao',     29, 'Bowler',        'Right-hand', 25, 3),
+    -> ('Sai Kiran',      27, 'Wicket-keeper', 'Right-hand', 3,  3),
+    -> ('Mahesh Goud',    32, 'Batsman',       'Left-hand',  17, 3),
+    -> ('Rahul Singh',    32, 'Batsman',       'Right-hand', 5,  4),
+    -> ('Deepak Yadav',   27, 'Bowler',        'Right-hand', 12, 4),
+    -> ('Manish Gupta',   24, 'All-rounder',   'Left-hand',  19, 4),
+    -> ('Karan Malhotra', 28, 'Wicket-keeper', 'Right-hand', 4,  4),
+    -> ('Ankit Chauhan',  30, 'Bowler',        'Right-hand', 36, 4),
+    -> ('Sourav Das',     29, 'Batsman',       'Left-hand',  6,  5),
+    -> ('Wriddhi Sen',    26, 'Wicket-keeper', 'Right-hand', 21, 5),
+    -> ('Ayan Ghosh',     25, 'All-rounder',   'Right-hand', 15, 5),
+    -> ('Pritam Roy',     28, 'Bowler',        'Right-hand', 27, 5),
+    -> ('Debashis Paul',  31, 'Batsman',       'Right-hand', 50, 5),
+    -> ('Kiran Gowda',    27, 'Batsman',       'Right-hand', 13, 6),
+    -> ('Naveen Shetty',  26, 'Bowler',        'Left-hand',  24, 6),
+    -> ('Prashanth Rao',  30, 'All-rounder',   'Right-hand', 16, 6),
+    -> ('Varun Hegde',    25, 'Wicket-keeper', 'Right-hand', 20, 6),
+    -> ('Manoj Kamath',   33, 'Batsman',       'Left-hand',  99, 6);
+Query OK, 30 rows affected (0.01 sec)
+Records: 30  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO matches (tournament_id, team1_id, team2_id, stadium_id, match_date, match_type, winner_team_id, player_of_match) VALUES
+    -> (1, 1, 2, 1, '2025-03-05', 'League',     1, 1),
+    -> (1, 3, 4, 3, '2025-03-08', 'League',     4, 16),
+    -> (1, 5, 6, 4, '2025-03-12', 'League',     5, 21),
+    -> (1, 1, 4, 1, '2025-03-20', 'Final',      1, 3),
+    -> (2, 1, 3, 1, '2026-03-02', 'League',     3, 11),
+    -> (2, 2, 5, 2, '2026-03-05', 'League',     2, 6),
+    -> (2, 4, 6, 3, '2026-03-09', 'League',     6, 26),
+    -> (2, 1, 2, 2, '2026-03-14', 'League',     1, 1),
+    -> (2, 3, 6, 3, '2026-03-18', 'Semi-Final', 3, 12),
+    -> (2, 4, 5, 4, '2026-03-22', 'Semi-Final', 5, 21),
+    -> (2, 3, 5, 3, '2026-03-30', 'Final',      NULL, NULL);   -- upcoming match
+Query OK, 11 rows affected (0.00 sec)
+Records: 11  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO innings (match_id, innings_no, batting_team_id, bowling_team_id, total_runs, wickets_lost, overs) VALUES
+    -> (1, 1, 1, 2, 168, 6, 20.0), (1, 2, 2, 1, 150, 9, 20.0),
+    -> (2, 1, 3, 4, 142, 8, 20.0), (2, 2, 4, 3, 143, 4, 18.2),
+    -> (3, 1, 5, 6, 175, 5, 20.0), (3, 2, 6, 5, 160, 8, 20.0),
+    -> (4, 1, 4, 1, 155, 7, 20.0), (4, 2, 1, 4, 156, 3, 19.1),
+    -> (5, 1, 1, 3, 160, 7, 20.0), (5, 2, 3, 1, 161, 5, 19.0),
+    -> (6, 1, 5, 2, 148, 9, 20.0), (6, 2, 2, 5, 149, 4, 18.4),
+    -> (7, 1, 4, 6, 130, 10, 19.2),(7, 2, 6, 4, 131, 3, 15.5),
+    -> (8, 1, 2, 1, 170, 5, 20.0), (8, 2, 1, 2, 171, 4, 19.3),
+    -> (9, 1, 6, 3, 155, 6, 20.0), (9, 2, 3, 6, 156, 5, 19.4),
+    -> (10,1, 4, 5, 140, 8, 20.0), (10,2, 5, 4, 141, 3, 17.2);
+Query OK, 20 rows affected (0.01 sec)
+Records: 20  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> INSERT INTO player_stats (match_id, player_id, runs, balls_faced, fours, sixes, wickets, overs_bowled, runs_conceded) VALUES
+    -> (1, 1, 72, 48, 8, 3, 0, 0, 0),  (1, 3, 35, 22, 3, 2, 2, 4, 28), (1, 2, 5, 4, 0, 0, 3, 4, 24),
+    -> (1, 6, 48, 40, 5, 1, 0, 0, 0),  (1, 7, 10, 8, 1, 0, 2, 4, 35),
+    -> (2, 11, 50, 38, 5, 2, 0, 0, 0), (2, 16, 61, 40, 7, 2, 0, 0, 0), (2, 17, 3, 2, 0, 0, 3, 4, 22),
+    -> (2, 13, 8, 6, 1, 0, 1, 4, 30),
+    -> (3, 21, 88, 52, 9, 4, 0, 0, 0), (3, 24, 2, 3, 0, 0, 4, 4, 20),  (3, 26, 64, 45, 6, 2, 0, 0, 0),
+    -> (3, 27, 6, 5, 0, 0, 2, 4, 33),
+    -> (4, 3, 45, 30, 4, 2, 1, 3, 25), (4, 1, 66, 44, 7, 3, 0, 0, 0),  (4, 16, 40, 35, 3, 1, 0, 0, 0),
+    -> (4, 20, 4, 3, 0, 0, 2, 4, 38),
+    -> (5, 1, 58, 41, 6, 2, 0, 0, 0),  (5, 11, 70, 45, 8, 3, 0, 0, 0), (5, 12, 22, 14, 2, 1, 2, 4, 31),
+    -> (5, 2, 3, 2, 0, 0, 1, 4, 40),
+    -> (6, 21, 40, 35, 4, 1, 0, 0, 0), (6, 6, 52, 38, 5, 2, 0, 0, 0),  (6, 10, 2, 1, 0, 0, 3, 4, 26),
+    -> (6, 24, 5, 4, 0, 0, 2, 4, 34),
+    -> (7, 16, 28, 25, 3, 0, 0, 0, 0), (7, 26, 60, 40, 7, 2, 0, 0, 0), (7, 27, 7, 5, 0, 0, 3, 4, 21),
+    -> (7, 18, 18, 15, 1, 1, 1, 3, 29),
+    -> (8, 6, 80, 50, 9, 4, 0, 0, 0),  (8, 1, 90, 55, 10, 5, 0, 0, 0), (8, 7, 12, 9, 1, 0, 2, 4, 32),
+    -> (8, 2, 4, 3, 0, 0, 3, 4, 30),
+    -> (9, 12, 66, 45, 7, 3, 1, 4, 27),(9, 13, 5, 4, 0, 0, 2, 4, 29),  (9, 28, 48, 36, 4, 2, 0, 0, 0),
+    -> (9, 26, 35, 30, 3, 1, 0, 0, 0),
+    -> (10, 21, 70, 42, 8, 3, 0, 0, 0),(10, 23, 25, 18, 2, 1, 2, 4, 22),(10, 16, 55, 42, 5, 2, 0, 0, 0),
+    -> (10, 17, 6, 4, 0, 0, 2, 4, 36);
+Query OK, 41 rows affected (0.01 sec)
+Records: 41  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> CREATE VIEW v_match_summary AS
+    -> SELECT m.match_id, m.match_date, m.match_type,
+    ->        t1.team_name AS team_1, t2.team_name AS team_2,
+    ->        s.stadium_name, w.team_name AS winner
+    -> FROM matches m
+    -> JOIN teams t1   ON m.team1_id = t1.team_id
+    -> JOIN teams t2   ON m.team2_id = t2.team_id
+    -> JOIN stadium s  ON m.stadium_id = s.stadium_id
+    -> LEFT JOIN teams w ON m.winner_team_id = w.team_id;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> CREATE VIEW v_points_table AS
+    -> SELECT t.team_id, t.team_name, COUNT(m.match_id) AS wins, COUNT(m.match_id) * 2 AS points
+    -> FROM teams t LEFT JOIN matches m ON t.team_id = m.winner_team_id
+    -> GROUP BY t.team_id, t.team_name;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> CREATE VIEW v_player_career AS
+    -> SELECT p.player_id, p.player_name, t.team_name,
+    ->        COUNT(ps.match_id) AS matches_played,
+    ->        SUM(ps.runs) AS total_runs, SUM(ps.wickets) AS total_wickets,
+    ->        SUM(ps.fours) AS fours, SUM(ps.sixes) AS sixes
+    -> FROM players p
+    -> JOIN teams t ON p.team_id = t.team_id
+    -> LEFT JOIN player_stats ps ON p.player_id = ps.player_id
+    -> GROUP BY p.player_id, p.player_name, t.team_name;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql>
+mysql> SELECT * FROM v_match_summary;
++----------+------------+------------+------------------+--------------------+------------------------+--------------------+
+| match_id | match_date | match_type | team_1           | team_2             | stadium_name           | winner             |
++----------+------------+------------+------------------+--------------------+------------------------+--------------------+
+|        1 | 2025-03-05 | League     | Chennai Strikers | Mumbai Warriors    | MA Chidambaram Stadium | Chennai Strikers   |
+|        4 | 2025-03-20 | Final      | Chennai Strikers | Delhi Dynamos      | MA Chidambaram Stadium | Chennai Strikers   |
+|        5 | 2026-03-02 | League     | Chennai Strikers | Hyderabad Hawks    | MA Chidambaram Stadium | Hyderabad Hawks    |
+|        6 | 2026-03-05 | League     | Mumbai Warriors  | Kolkata Knights    | Wankhede Stadium       | Mumbai Warriors    |
+|        8 | 2026-03-14 | League     | Chennai Strikers | Mumbai Warriors    | Wankhede Stadium       | Chennai Strikers   |
+|        2 | 2025-03-08 | League     | Hyderabad Hawks  | Delhi Dynamos      | Rajiv Gandhi Stadium   | Delhi Dynamos      |
+|        7 | 2026-03-09 | League     | Delhi Dynamos    | Bengaluru Blasters | Rajiv Gandhi Stadium   | Bengaluru Blasters |
+|        9 | 2026-03-18 | Semi-Final | Hyderabad Hawks  | Bengaluru Blasters | Rajiv Gandhi Stadium   | Hyderabad Hawks    |
+|       11 | 2026-03-30 | Final      | Hyderabad Hawks  | Kolkata Knights    | Rajiv Gandhi Stadium   | NULL               |
+|        3 | 2025-03-12 | League     | Kolkata Knights  | Bengaluru Blasters | Eden Gardens           | Kolkata Knights    |
+|       10 | 2026-03-22 | Semi-Final | Delhi Dynamos    | Kolkata Knights    | Eden Gardens           | Kolkata Knights    |
++----------+------------+------------+------------------+--------------------+------------------------+--------------------+
+11 rows in set (0.00 sec)
+
+mysql> SELECT team_name, points, RANK() OVER (ORDER BY points DESC) AS team_rank FROM v_points_table;
++--------------------+--------+-----------+
+| team_name          | points | team_rank |
++--------------------+--------+-----------+
+| Chennai Strikers   |      6 |         1 |
+| Hyderabad Hawks    |      4 |         2 |
+| Kolkata Knights    |      4 |         2 |
+| Bengaluru Blasters |      2 |         4 |
+| Delhi Dynamos      |      2 |         4 |
+| Mumbai Warriors    |      2 |         4 |
++--------------------+--------+-----------+
+6 rows in set (0.01 sec)
+
+mysql> SELECT * FROM v_player_career ORDER BY total_runs DESC;
++-----------+----------------+--------------------+----------------+------------+---------------+-------+-------+
+| player_id | player_name    | team_name          | matches_played | total_runs | total_wickets | fours | sixes |
++-----------+----------------+--------------------+----------------+------------+---------------+-------+-------+
+|         1 | Arjun Reddy    | Chennai Strikers   |              4 |        286 |             0 |    31 |    13 |
+|        21 | Sourav Das     | Kolkata Knights    |              3 |        198 |             0 |    21 |     8 |
+|        16 | Rahul Singh    | Delhi Dynamos      |              4 |        184 |             0 |    18 |     5 |
+|         6 | Rohit Verma    | Mumbai Warriors    |              3 |        180 |             0 |    19 |     7 |
+|        26 | Kiran Gowda    | Bengaluru Blasters |              3 |        159 |             0 |    16 |     5 |
+|        11 | Pranav Teja    | Hyderabad Hawks    |              2 |        120 |             0 |    13 |     5 |
+|        12 | Harsha Vardhan | Hyderabad Hawks    |              2 |         88 |             3 |     9 |     4 |
+|         3 | Suresh Babu    | Chennai Strikers   |              2 |         80 |             3 |     7 |     4 |
+|        28 | Prashanth Rao  | Bengaluru Blasters |              1 |         48 |             0 |     4 |     2 |
+|        23 | Ayan Ghosh     | Kolkata Knights    |              1 |         25 |             2 |     2 |     1 |
+|         7 | Sameer Khan    | Mumbai Warriors    |              2 |         22 |             4 |     2 |     0 |
+|        18 | Manish Gupta   | Delhi Dynamos      |              1 |         18 |             1 |     1 |     1 |
+|        27 | Naveen Shetty  | Bengaluru Blasters |              2 |         13 |             5 |     0 |     0 |
+|        13 | Nikhil Rao     | Hyderabad Hawks    |              2 |         13 |             3 |     1 |     0 |
+|         2 | Karthik Raj    | Chennai Strikers   |              3 |         12 |             7 |     0 |     0 |
+|        17 | Deepak Yadav   | Delhi Dynamos      |              2 |          9 |             5 |     0 |     0 |
+|        24 | Pritam Roy     | Kolkata Knights    |              2 |          7 |             6 |     0 |     0 |
+|        20 | Ankit Chauhan  | Delhi Dynamos      |              1 |          4 |             2 |     0 |     0 |
+|        10 | Nitin Patil    | Mumbai Warriors    |              1 |          2 |             3 |     0 |     0 |
+|        29 | Varun Hegde    | Bengaluru Blasters |              0 |       NULL |          NULL |  NULL |  NULL |
+|        30 | Manoj Kamath   | Bengaluru Blasters |              0 |       NULL |          NULL |  NULL |  NULL |
+|         4 | Vijay Kumar    | Chennai Strikers   |              0 |       NULL |          NULL |  NULL |  NULL |
+|         5 | Dinesh Naidu   | Chennai Strikers   |              0 |       NULL |          NULL |  NULL |  NULL |
+|        19 | Karan Malhotra | Delhi Dynamos      |              0 |       NULL |          NULL |  NULL |  NULL |
+|        14 | Sai Kiran      | Hyderabad Hawks    |              0 |       NULL |          NULL |  NULL |  NULL |
+|        15 | Mahesh Goud    | Hyderabad Hawks    |              0 |       NULL |          NULL |  NULL |  NULL |
+|        22 | Wriddhi Sen    | Kolkata Knights    |              0 |       NULL |          NULL |  NULL |  NULL |
+|        25 | Debashis Paul  | Kolkata Knights    |              0 |       NULL |          NULL |  NULL |  NULL |
+|         8 | Vikram Joshi   | Mumbai Warriors    |              0 |       NULL |          NULL |  NULL |  NULL |
+|         9 | Aditya Shah    | Mumbai Warriors    |              0 |       NULL |          NULL |  NULL |  NULL |
++-----------+----------------+--------------------+----------------+------------+---------------+-------+-------+
+30 rows in set (0.00 sec)
+
+mysql> DELIMITER //
+mysql>
+mysql> CREATE FUNCTION fn_strike_rate(p_runs INT, p_balls INT)
+    -> RETURNS DECIMAL(6,2) DETERMINISTIC
+    -> BEGIN
+    ->     RETURN IF(p_balls = 0, 0, ROUND(p_runs * 100 / p_balls, 2));
+    -> END //
+Query OK, 0 rows affected (0.01 sec)
+
+mysql>
+mysql> CREATE PROCEDURE sp_team_report(IN p_team_id INT)
+    -> BEGIN
+    ->     SELECT t.team_name,
+    ->            COUNT(*) AS matches_played,
+    ->            SUM(m.winner_team_id = t.team_id) AS wins
+    ->     FROM teams t
+    ->     JOIN matches m ON t.team_id IN (m.team1_id, m.team2_id)
+    ->     WHERE t.team_id = p_team_id AND m.winner_team_id IS NOT NULL
+    ->     GROUP BY t.team_name;
+    -> END //
+Query OK, 0 rows affected (0.01 sec)
+
+mysql>
+mysql> CREATE TRIGGER trg_matches_check
+    -> BEFORE INSERT ON matches
+    -> FOR EACH ROW
+    -> BEGIN
+    ->     IF NEW.team1_id = NEW.team2_id THEN
+    ->         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A team cannot play against itself';
+    ->     END IF;
+    -> END //
+Query OK, 0 rows affected (0.01 sec)
+
+mysql>
+mysql> DELIMITER ;
+mysql>
+mysql> SELECT p.player_name, ps.runs, ps.balls_faced, fn_strike_rate(ps.runs, ps.balls_faced) AS strike_rate
+    -> FROM player_stats ps JOIN players p ON ps.player_id = p.player_id
+    -> WHERE ps.balls_faced > 0 ORDER BY strike_rate DESC LIMIT 5;
++-------------+------+-------------+-------------+
+| player_name | runs | balls_faced | strike_rate |
++-------------+------+-------------+-------------+
+| Nitin Patil |    2 |           1 |      200.00 |
+| Sourav Das  |   88 |          52 |      169.23 |
+| Sourav Das  |   70 |          42 |      166.67 |
+| Arjun Reddy |   90 |          55 |      163.64 |
+| Rohit Verma |   80 |          50 |      160.00 |
++-------------+------+-------------+-------------+
+5 rows in set (0.01 sec)
+
+mysql> CALL sp_team_report(1);
++------------------+----------------+------+
+| team_name        | matches_played | wins |
++------------------+----------------+------+
+| Chennai Strikers |              4 |    3 |
++------------------+----------------+------+
+1 row in set (0.01 sec)
+
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> UPDATE coaches SET email = CONCAT(LOWER(REPLACE(coach_name, ' ', '.')), '@cricket.com');
+Query OK, 6 rows affected (0.01 sec)
+Rows matched: 6  Changed: 6  Warnings: 0
+
+mysql> UPDATE registrations SET fee_paid = 60000 WHERE tournament_id = 2 AND team_id = 6;
+Query OK, 1 row affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> START TRANSACTION;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql>  UPDATE matches SET winner_team_id = 3, player_of_match = 11 WHERE match_id = 11;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql>  INSERT INTO innings (match_id, innings_no, batting_team_id, bowling_team_id, total_runs, wickets_lost, overs)
+    ->     VALUES (11, 1, 5, 3, 150, 8, 20.0);
+Query OK, 1 row affected (0.00 sec)
+
+mysql>
+mysql> ROLLBACK;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> DELETE FROM player_stats WHERE stat_id = 41;
+Query OK, 1 row affected (0.01 sec)
+
+mysql> -- Queries
+mysql> 
+mysql> -- Q1: all bowlers older than 26
+mysql> SELECT player_name, age, role FROM players WHERE role = 'Bowler' AND age > 26;
++---------------+------+--------+
+| player_name   | age  | role   |
++---------------+------+--------+
+| Nitin Patil   |   29 | Bowler |
+| Nikhil Rao    |   29 | Bowler |
+| Deepak Yadav  |   27 | Bowler |
+| Ankit Chauhan |   30 | Bowler |
+| Pritam Roy    |   28 | Bowler |
++---------------+------+--------+
+5 rows in set (0.00 sec)
+
+mysql> -- Q2: teams whose name starts with 'C' or 'D'
+mysql> SELECT team_name, city FROM teams WHERE team_name LIKE 'C%' OR team_name LIKE 'D%';
++------------------+---------+
+| team_name        | city    |
++------------------+---------+
+| Chennai Strikers | Chennai |
+| Delhi Dynamos    | Delhi   |
++------------------+---------+
+2 rows in set (0.01 sec)
+
+mysql> -- Q3: matches played in March 2026 between given dates
+mysql> SELECT match_id, match_date, match_type FROM matches
+    -> WHERE match_date BETWEEN '2026-03-01' AND '2026-03-15' ORDER BY match_date;
++----------+------------+------------+
+| match_id | match_date | match_type |
++----------+------------+------------+
+|        5 | 2026-03-02 | League     |
+|        6 | 2026-03-05 | League     |
+|        7 | 2026-03-09 | League     |
+|        8 | 2026-03-14 | League     |
++----------+------------+------------+
+4 rows in set (0.00 sec)
+
+mysql> -- Q4: players from teams 1, 3 and 5, youngest first, top 5
+mysql> SELECT player_name, age, team_id FROM players
+    -> WHERE team_id IN (1, 3, 5) ORDER BY age ASC LIMIT 5;
++--------------+------+---------+
+| player_name  | age  | team_id |
++--------------+------+---------+
+| Pranav Teja  |   23 |       3 |
+| Karthik Raj  |   24 |       1 |
+| Ayan Ghosh   |   25 |       5 |
+| Wriddhi Sen  |   26 |       5 |
+| Dinesh Naidu |   26 |       1 |
++--------------+------+---------+
+5 rows in set (0.00 sec)
+
+mysql> -- Q5: Show the matches whose result is not decided yet (winner is not available).
+mysql> SELECT match_id, match_date, match_type
+    -> FROM matches
+    -> WHERE winner_team_id IS NULL;
++----------+------------+------------+
+| match_id | match_date | match_type |
++----------+------------+------------+
+|       11 | 2026-03-30 | Final      |
++----------+------------+------------+
+1 row in set (0.01 sec)
+
+mysql> -- Q6: Show each team name along with its coach name and the coach's years of experience.
+mysql> SELECT t.team_name, c.coach_name, c.experience_years
+    -> FROM teams t
+    -> JOIN coaches c ON t.coach_id = c.coach_id
+    -> ORDER BY t.team_name;
++--------------------+--------------------+------------------+
+| team_name          | coach_name         | experience_years |
++--------------------+--------------------+------------------+
+| Bengaluru Blasters | Girish Naik        |               14 |
+| Chennai Strikers   | Ravi Kumar         |               12 |
+| Delhi Dynamos      | Amit Sharma        |               10 |
+| Hyderabad Hawks    | Venkat Rao         |               15 |
+| Kolkata Knights    | Debasish Mukherjee |               18 |
+| Mumbai Warriors    | Sandeep Patil      |               20 |
++--------------------+--------------------+------------------+
+6 rows in set (0.00 sec)
+
+mysql> -- Q7: Show the results of tournament 1: match id, match date, both team names, stadium name and the winner team name.
+mysql> SELECT m.match_id, m.match_date,
+    ->        t1.team_name AS team_1, t2.team_name AS team_2,
+    ->        s.stadium_name, w.team_name AS winner
+    -> FROM matches m
+    -> JOIN teams t1     ON m.team1_id = t1.team_id
+    -> JOIN teams t2     ON m.team2_id = t2.team_id
+    -> JOIN stadium s    ON m.stadium_id = s.stadium_id
+    -> LEFT JOIN teams w ON m.winner_team_id = w.team_id
+    -> WHERE m.tournament_id = 1
+    -> ORDER BY m.match_date;
++----------+------------+------------------+--------------------+------------------------+------------------+
+| match_id | match_date | team_1           | team_2             | stadium_name           | winner           |
++----------+------------+------------------+--------------------+------------------------+------------------+
+|        1 | 2025-03-05 | Chennai Strikers | Mumbai Warriors    | MA Chidambaram Stadium | Chennai Strikers |
+|        2 | 2025-03-08 | Hyderabad Hawks  | Delhi Dynamos      | Rajiv Gandhi Stadium   | Delhi Dynamos    |
+|        3 | 2025-03-12 | Kolkata Knights  | Bengaluru Blasters | Eden Gardens           | Kolkata Knights  |
+|        4 | 2025-03-20 | Chennai Strikers | Delhi Dynamos      | MA Chidambaram Stadium | Chennai Strikers |
++----------+------------+------------------+--------------------+------------------------+------------------+
+4 rows in set (0.00 sec)
+
+mysql> -- Q8: Find the top 5 run scorers of the tournament. Show player name and their total runs, highest first.
+mysql> SELECT p.player_name, SUM(ps.runs) AS total_runs
+    -> FROM player_stats ps
+    -> JOIN players p ON ps.player_id = p.player_id
+    -> GROUP BY p.player_name
+    -> ORDER BY total_runs DESC
+    -> LIMIT 5;
++-------------+------------+
+| player_name | total_runs |
++-------------+------------+
+| Arjun Reddy |        286 |
+| Sourav Das  |        198 |
+| Rahul Singh |        184 |
+| Rohit Verma |        180 |
+| Kiran Gowda |        159 |
++-------------+------------+
+5 rows in set (0.00 sec)
+
+mysql>
+mysql> -- Q9: Show the players who have taken 5 or more wickets in total, along with their total wickets.
+mysql> SELECT p.player_name, SUM(ps.wickets) AS total_wickets
+    -> FROM player_stats ps
+    -> JOIN players p ON ps.player_id = p.player_id
+    -> GROUP BY p.player_name
+    -> HAVING SUM(ps.wickets) >= 5
+    -> ORDER BY total_wickets DESC, p.player_name;
++---------------+---------------+
+| player_name   | total_wickets |
++---------------+---------------+
+| Karthik Raj   |             7 |
+| Pritam Roy    |             6 |
+| Naveen Shetty |             5 |
++---------------+---------------+
+3 rows in set (0.00 sec)
+
+mysql>
+mysql> -- Q10: Show the players (name and runs) who scored more than the average runs of all performances.
+mysql> SELECT p.player_name, ps.runs
+    -> FROM player_stats ps
+    -> JOIN players p ON ps.player_id = p.player_id
+    -> WHERE ps.runs > (SELECT AVG(runs) FROM player_stats)
+    -> ORDER BY ps.runs DESC, p.player_name;
++----------------+------+
+| player_name    | runs |
++----------------+------+
+| Arjun Reddy    |   90 |
+| Sourav Das     |   88 |
+| Rohit Verma    |   80 |
+| Arjun Reddy    |   72 |
+| Pranav Teja    |   70 |
+| Sourav Das     |   70 |
+| Arjun Reddy    |   66 |
+| Harsha Vardhan |   66 |
+| Kiran Gowda    |   64 |
+| Rahul Singh    |   61 |
+| Kiran Gowda    |   60 |
+| Arjun Reddy    |   58 |
+| Rahul Singh    |   55 |
+| Rohit Verma    |   52 |
+| Pranav Teja    |   50 |
+| Prashanth Rao  |   48 |
+| Rohit Verma    |   48 |
+| Suresh Babu    |   45 |
+| Rahul Singh    |   40 |
+| Sourav Das     |   40 |
++----------------+------+
+20 rows in set (0.01 sec)
+
+mysql> -- Q11: For every match, show the highest run scorer of that match (match id, player name, runs).
+mysql> SELECT ps.match_id, p.player_name, ps.runs
+    -> FROM player_stats ps
+    -> JOIN players p ON ps.player_id = p.player_id
+    -> WHERE ps.runs = (SELECT MAX(x.runs)
+    ->                  FROM player_stats x
+    ->                  WHERE x.match_id = ps.match_id)
+    -> ORDER BY ps.match_id;
++----------+----------------+------+
+| match_id | player_name    | runs |
++----------+----------------+------+
+|        1 | Arjun Reddy    |   72 |
+|        2 | Rahul Singh    |   61 |
+|        3 | Sourav Das     |   88 |
+|        4 | Arjun Reddy    |   66 |
+|        5 | Pranav Teja    |   70 |
+|        6 | Rohit Verma    |   52 |
+|        7 | Kiran Gowda    |   60 |
+|        8 | Arjun Reddy    |   90 |
+|        9 | Harsha Vardhan |   66 |
+|       10 | Sourav Das     |   70 |
++----------+----------------+------+
+10 rows in set (0.00 sec)
+
+mysql> -- Q12: Find pairs of players who play for the same team and have the same role (show both names, the role and the team id).
+mysql> SELECT a.player_name AS player_1, b.player_name AS player_2, a.role, a.team_id
+    -> FROM players a
+    -> JOIN players b
+    ->   ON a.team_id = b.team_id
+    ->  AND a.role = b.role
+    ->  AND a.player_id < b.player_id;
++--------------+---------------+---------+---------+
+| player_1     | player_2      | role    | team_id |
++--------------+---------------+---------+---------+
+| Arjun Reddy  | Dinesh Naidu  | Batsman |       1 |
+| Sameer Khan  | Nitin Patil   | Bowler  |       2 |
+| Pranav Teja  | Mahesh Goud   | Batsman |       3 |
+| Deepak Yadav | Ankit Chauhan | Bowler  |       4 |
+| Sourav Das   | Debashis Paul | Batsman |       5 |
+| Kiran Gowda  | Manoj Kamath  | Batsman |       6 |
++--------------+---------------+---------+---------+
+6 rows in set (0.00 sec)
+
+mysql> -- Q13: Create a points table view (each win = 2 points) and display every team with its points and rank. Teams with equal points get the same rank.
+mysql> CREATE OR REPLACE VIEW v_points_table AS
+    -> SELECT t.team_name,
+    ->        COUNT(m.match_id)     AS wins,
+    ->        COUNT(m.match_id) * 2 AS points
+    -> FROM teams t
+    -> LEFT JOIN matches m ON t.team_id = m.winner_team_id
+    -> GROUP BY t.team_id, t.team_name;
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> SELECT team_name, points,
+    ->        RANK() OVER (ORDER BY points DESC) AS team_rank
+    -> FROM v_points_table
+    -> ORDER BY team_rank, team_name;
++--------------------+--------+-----------+
+| team_name          | points | team_rank |
++--------------------+--------+-----------+
+| Chennai Strikers   |      6 |         1 |
+| Hyderabad Hawks    |      4 |         2 |
+| Kolkata Knights    |      4 |         2 |
+| Bengaluru Blasters |      2 |         4 |
+| Delhi Dynamos      |      2 |         4 |
+| Mumbai Warriors    |      2 |         4 |
++--------------------+--------+-----------+
+6 rows in set (0.01 sec)
